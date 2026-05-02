@@ -1,16 +1,11 @@
 /**
- * Verodevs landing: смена языка и отправка формы на webhook (placeholder URL).
+ * Verodevs landing: смена языка и отправка формы напрямую в Telegram.
  */
 (function () {
   const CONFIG = {
-    /** Замените на реальный endpoint (n8n, Make, свой backend и т.д.) */
-    WEBHOOK_URL: "https://example.com/your-webhook-placeholder",
+    TELEGRAM_BOT_TOKEN: "8643532575:AAE75fY89tM4lQsc_bTl8KcTXopbPhRqNAg",
+    TELEGRAM_CHAT_ID: "-1003863215260",
   };
-
-  /** Пока URL-заглушка — имитируем успех, чтобы локально проверить UI без CORS/404 */
-  function isPlaceholderWebhook(url) {
-    return /example\.com/i.test(url) || url.indexOf("placeholder") !== -1;
-  }
 
   const STORAGE_KEY = "verodevs_lang";
   const THEME_KEY = "verodevs_theme";
@@ -117,34 +112,79 @@
     });
   }
 
-  /**
-   * POST JSON на webhook. Структура удобна для Zapier/n8n/своего API.
-   * При смене CONFIG.WEBHOOK_URL ничего больше менять не нужно.
-   */
-  async function submitLead(payload) {
-    if (isPlaceholderWebhook(CONFIG.WEBHOOK_URL)) {
-      if (typeof console !== "undefined" && console.info) {
-        console.info("[Verodevs] Placeholder webhook — payload (скопируйте для теста):", payload);
-      }
-      await new Promise(function (r) {
-        setTimeout(r, 600);
-      });
-      return { ok: true, placeholder: true };
-    }
+  function buildTelegramText(payload) {
+    return [
+      "Новая заявка с сайта Verodevs",
+      "",
+      "Имя: " + payload.name,
+      "Телефон: " + payload.phone,
+      "Язык: " + payload.lang,
+      "Дата: " + payload.sentAt,
+      "",
+      "Задача:",
+      payload.message,
+    ].join("\n");
+  }
 
-    const res = await fetch(CONFIG.WEBHOOK_URL, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify(payload),
+  function addHiddenField(form, name, value) {
+    const input = document.createElement("input");
+    input.type = "hidden";
+    input.name = name;
+    input.value = value;
+    form.appendChild(input);
+  }
+
+  async function submitLead(payload) {
+    const iframeName = "telegram-submit-" + Date.now();
+    const iframe = document.createElement("iframe");
+    const form = document.createElement("form");
+    let done = false;
+
+    iframe.name = iframeName;
+    iframe.style.display = "none";
+
+    form.method = "POST";
+    form.action = "https://api.telegram.org/bot" + CONFIG.TELEGRAM_BOT_TOKEN + "/sendMessage";
+    form.target = iframeName;
+    form.style.display = "none";
+
+    addHiddenField(form, "chat_id", CONFIG.TELEGRAM_CHAT_ID);
+    addHiddenField(form, "text", buildTelegramText(payload));
+    addHiddenField(form, "disable_web_page_preview", "true");
+
+    document.body.appendChild(iframe);
+    document.body.appendChild(form);
+
+    await new Promise(function (resolve, reject) {
+      const timer = window.setTimeout(function () {
+        finish(resolve);
+      }, 2500);
+
+      function finish(fn) {
+        if (done) return;
+        done = true;
+        window.clearTimeout(timer);
+        window.setTimeout(function () {
+          iframe.remove();
+          form.remove();
+        }, 0);
+        fn();
+      }
+
+      iframe.addEventListener("load", function () {
+        finish(resolve);
+      });
+
+      iframe.addEventListener("error", function () {
+        finish(function () {
+          reject(new Error("Telegram frame failed"));
+        });
+      });
+
+      form.submit();
     });
-    if (!res.ok) {
-      const err = new Error("Webhook responded with " + res.status);
-      err.status = res.status;
-      throw err;
-    }
-    return res;
+
+    return { ok: true };
   }
 
   function getFormMessages() {
@@ -152,10 +192,63 @@
     return VerodevsI18n.getStrings(lang);
   }
 
+  function getPhoneDigits(value) {
+    return String(value || "").replace(/\D/g, "");
+  }
+
+  function getLocalPhoneDigits(value, countryCode) {
+    const phoneDigits = getPhoneDigits(value);
+    const countryDigits = getPhoneDigits(countryCode);
+    return phoneDigits.indexOf(countryDigits) === 0
+      ? phoneDigits.slice(countryDigits.length)
+      : phoneDigits;
+  }
+
+  function formatPhone(countryCode, localDigits) {
+    const digits = String(localDigits || "").replace(/\D/g, "");
+    return countryCode + (digits ? " " + digits : " ");
+  }
+
+  function initPhoneField(form) {
+    const countrySelect = form.querySelector('select[name="phoneCountry"]');
+    const phoneInput = form.querySelector('input[name="phone"]');
+    if (!countrySelect || !phoneInput) return;
+    let previousCountryCode = countrySelect.value;
+
+    function syncPhone() {
+      phoneInput.value = formatPhone(
+        countrySelect.value,
+        getLocalPhoneDigits(phoneInput.value, countrySelect.value)
+      );
+    }
+
+    countrySelect.addEventListener("change", function () {
+      const localDigits = getLocalPhoneDigits(phoneInput.value, previousCountryCode);
+      previousCountryCode = countrySelect.value;
+      phoneInput.value = formatPhone(countrySelect.value, localDigits);
+      phoneInput.focus();
+    });
+
+    phoneInput.addEventListener("focus", syncPhone);
+    phoneInput.addEventListener("input", syncPhone);
+    phoneInput.addEventListener("paste", function () {
+      window.setTimeout(syncPhone, 0);
+    });
+    form.addEventListener("reset", function () {
+      window.setTimeout(function () {
+        previousCountryCode = countrySelect.value;
+        syncPhone();
+      }, 0);
+    });
+
+    syncPhone();
+  }
+
   function initForm() {
     const form = document.getElementById("lead-form");
     const statusEl = document.getElementById("form-status");
     if (!form || !statusEl) return;
+    initPhoneField(form);
 
     form.addEventListener("submit", async function (e) {
       e.preventDefault();
@@ -166,9 +259,10 @@
       const fd = new FormData(form);
       const name = String(fd.get("name") || "").trim();
       const phone = String(fd.get("phone") || "").trim();
+      const phoneCountry = String(fd.get("phoneCountry") || "").trim();
       const message = String(fd.get("message") || "").trim();
 
-      if (!name || !phone || !message) {
+      if (!name || !getLocalPhoneDigits(phone, phoneCountry) || !message) {
         statusEl.textContent = msgs.formValidate;
         statusEl.classList.add("is-error");
         return;

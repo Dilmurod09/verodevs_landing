@@ -128,6 +128,7 @@
       formPhone: "Phone",
       formMessage: "Brief task description",
       formHint: "Data is sent to your webhook — set the URL in config.",
+
       formSubmit: "Send",
       footerTag: "True developers for startups and SMBs.",
       footerCopy: "© 2026 Verodevs. All rights reserved.",
@@ -196,6 +197,7 @@
       formPhone: "Telefon",
       formMessage: "Vazifa haqida qisqacha",
       formHint: "Ma’lumot webhook orqali yuboriladi — URL konfigda.",
+
       formSubmit: "Yuborish",
       footerTag: "Startaplar va KMB uchun haqiqiy dasturchilar.",
       footerCopy: "© 2026 Verodevs. Barcha huquqlar himoyalangan.",

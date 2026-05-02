@@ -189,13 +189,29 @@
                 </label>
                 <label class="field">
                   <span class="field-label" data-i18n="formPhone">Телефон</span>
-                  <input type="tel" name="phone" autocomplete="tel" required maxlength="40" />
+                  <span class="phone-field">
+                    <select name="phoneCountry" class="country-code" aria-label="Код страны">
+                      <option value="+998" selected>Узбекистан +998</option>
+                      <option value="+7">Россия / Казахстан +7</option>
+                      <option value="+996">Кыргызстан +996</option>
+                      <option value="+992">Таджикистан +992</option>
+                      <option value="+993">Туркменистан +993</option>
+                      <option value="+1">США / Канада +1</option>
+                      <option value="+44">Великобритания +44</option>
+                      <option value="+90">Турция +90</option>
+                      <option value="+971">ОАЭ +971</option>
+                      <option value="+49">Германия +49</option>
+                      <option value="+48">Польша +48</option>
+                      <option value="+86">Китай +86</option>
+                      <option value="+91">Индия +91</option>
+                    </select>
+                    <input type="tel" name="phone" autocomplete="tel" inputmode="numeric" required maxlength="32" />
+                  </span>
                 </label>
                 <label class="field">
                   <span class="field-label" data-i18n="formMessage">Кратко о задаче</span>
                   <textarea name="message" rows="4" required maxlength="2000"></textarea>
                 </label>
-                
                 <button type="submit" class="btn btn-primary" data-i18n="formSubmit">Отправить</button>
                 <p class="form-status" id="form-status" role="status" aria-live="polite"></p>
               </form>

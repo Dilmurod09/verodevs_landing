@@ -679,7 +679,8 @@ html[data-theme="dark"] .theme-toggle__icon--moon {
 }
 
 .field input,
-.field textarea {
+.field textarea,
+.field select {
   font-family: var(--font);
   font-size: 0.88rem;
   color: var(--text);
@@ -692,10 +693,32 @@ html[data-theme="dark"] .theme-toggle__icon--moon {
 }
 
 .field input:focus,
-.field textarea:focus {
+.field textarea:focus,
+.field select:focus {
   outline: none;
   border-color: var(--text-muted);
   box-shadow: 0 0 0 1px var(--field-focus-ring);
+}
+
+.phone-field {
+  display: grid;
+  grid-template-columns: minmax(11rem, 14rem) minmax(0, 1fr);
+  gap: 0.5rem;
+}
+
+.country-code {
+  min-width: 0;
+  cursor: pointer;
+}
+
+.phone-field input {
+  min-width: 0;
+}
+
+@media (max-width: 520px) {
+  .phone-field {
+    grid-template-columns: 1fr;
+  }
 }
 
 .form-hint {
